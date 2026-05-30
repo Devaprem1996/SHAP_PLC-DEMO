@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Plasma/Cyberpunk Design System - All colors MUST be HSL */
+
+@layer base {
+  :root {
+    /* Dark Plasma Theme */
+    --background: 260 30% 6%;
+    --foreground: 180 100% 85%;
+
+    /* Glass Cards */
+    --card: 260 20% 8%;
+    --card-foreground: 180 90% 90%;
+    --glass: 260 30% 12%;
+    --glass-border: 180 100% 50%;
+
+    /* Plasma Colors - Blue/Orange/Purple Theme */
+    --primary: 220 100% 60%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 220 100% 80%;
+
+    --secondary: 25 100% 60%;
+    --secondary-foreground: 0 0% 100%;
+    --secondary-glow: 25 100% 80%;
+
+    --accent: 280 100% 60%;
+    --accent-foreground: 0 0% 100%;
+    --accent-glow: 280 100% 80%;
+
+    --warning: 30 100% 50%;
+    --warning-foreground: 0 0% 0%;
+    --warning-glow: 30 100% 70%;
+
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 0 0% 100%;
+    --destructive-glow: 0 100% 70%;
+
+    /* Muted/Borders */
+    --muted: 260 20% 15%;
+    --muted-foreground: 180 50% 60%;
+    --border: 260 30% 20%;
+    --input: 260 30% 15%;
+    --ring: 320 100% 50%;
+
+    --radius: 1rem;
+
+    /* Special Effects */
+    --glow-primary: 0 0 20px hsl(var(--primary-glow) / 0.5);
+    --glow-secondary: 0 0 20px hsl(var(--secondary-glow) / 0.5);
+    --glow-accent: 0 0 20px hsl(var(--accent-glow) / 0.5);
+    --glow-warning: 0 0 20px hsl(var(--warning-glow) / 0.5);
+    --glow-destructive: 0 0 20px hsl(var(--destructive-glow) / 0.5);
+
+    /* Gradients */
+    --gradient-plasma: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--secondary)), hsl(var(--accent)));
+    --gradient-glass: linear-gradient(135deg, 
+      hsl(var(--glass) / 0.1), 
+      hsl(var(--glass) / 0.3));
+    --gradient-bg: radial-gradient(ellipse at top, 
+      hsl(var(--primary) / 0.1) 0%, 
+      hsl(var(--background)) 50%);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+
+  /* Glass effect utilities */
+  .glass-card {
+    @apply bg-gradient-glass backdrop-blur-md border border-glass-border/30;
+  }
+
+  .glow-text {
+    @apply text-primary;
+  }
+
+  /* Animation stagger for cards */
+  .animate-stagger-in {
+    animation-delay: calc(var(--stagger) * 0.1s);
+  }
+
+  /* Responsive grid for cards - no scrolling */
+  .auto-fit-cards {
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    max-width: 100%;
+  }
+
+  /* Ensure cards fit properly on smaller screens */
+  @media (max-width: 768px) {
+    .auto-fit-cards {
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 1rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .auto-fit-cards {
+      grid-template-columns: 1fr;
+      gap: 1rem;
+    }
+  }
+}
