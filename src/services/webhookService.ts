@@ -27,7 +27,7 @@ class WebhookService {
 
   constructor() {
     // Use environment variable or fallback to localhost
-    this.baseUrl = import.meta.env?.VITE_N8N_WEBHOOK_URL || 'http://192.10.90.230:5678/webhook/sha/fetchdata';
+    this.baseUrl = import.meta.env?.VITE_N8N_WEBHOOK_URL || 'http://localhost:5678/webhook/fetchdata' || 'http://192.10.90.230:5678/webhook/sha/fetchdata';
   }
 
   // Map system names to icons (moved from edge function)
