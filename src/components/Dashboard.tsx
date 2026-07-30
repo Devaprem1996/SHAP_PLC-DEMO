@@ -1,10 +1,11 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import PlcCard from "@/components/PlcCard";
 import { ArrowLeft, Filter, RotateCcw, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { TABLE_NAMES } from "@/config/tableNames";
 import { webhookService } from "@/services/webhookService";
 
 const Dashboard = () => {
@@ -24,9 +25,7 @@ const Dashboard = () => {
   const lineNameRef = useRef<HTMLSpanElement>(null);
 
   // Specific table names to filter by
-  const tableNames = [
-    'QY_DASH_COMPL_LINE'
-  ];
+  const tableNames = TABLE_NAMES;
 
   // Time intervals for sorting
   const timeIntervals = [{
@@ -58,6 +57,7 @@ const Dashboard = () => {
     
     // Determine which table to fetch
     let targetTable = tableName;
+    setCurrentlyFetchingTable(targetTable || '');
     if (tableName === 'all') {
       targetTable = tableNames[currentTableIndex];
       console.log(`🎯 [ROTATION] ALL mode - Fetching table ${currentTableIndex + 1}/${tableNames.length}: ${targetTable}`);
@@ -188,13 +188,15 @@ const Dashboard = () => {
   };
 
   // Filter and sort data - show all webhook column data
-  const filteredData = plcData
-    .filter(item => item && item.id && item.stationName && item.status)
-    .sort((a, b) => {
-      const dateA = new Date(a.lastUpdated);
-      const dateB = new Date(b.lastUpdated);
-      return dateB.getTime() - dateA.getTime();
-    });
+  const filteredData = useMemo(() => {
+    return plcData
+      .filter(item => item && item.id && item.stationName && item.status)
+      .sort((a, b) => {
+        const dateA = new Date(a.lastUpdated);
+        const dateB = new Date(b.lastUpdated);
+        return dateB.getTime() - dateA.getTime();
+      });
+  }, [plcData]);
 
   // Initial data load and periodic refresh with ALL mode rotation
   useEffect(() => {
@@ -240,7 +242,7 @@ const Dashboard = () => {
     }, getRefreshInterval());
 
     return () => clearInterval(interval);
-  }, [filterColumn, sortBy, currentTableIndex]);
+  }, [filterColumn, sortBy]);
   const getStatusCounts = () => {
     const normal = filteredData.filter(item => item.status === 'normal').length;
     const warning = filteredData.filter(item => item.status === 'warning').length;
