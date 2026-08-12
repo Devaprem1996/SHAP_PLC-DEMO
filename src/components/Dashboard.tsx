@@ -32,6 +32,14 @@ const tableNames = [
   'AY_SP3I_SOTR_RH_LINE_LIVE'
 ];
 
+const preferredSystemOrder: Record<string, number> = {
+  VisionSystem: 0,
+  SafetySystem: 1,
+  WaterBypass: 2,
+  WeldCountBypass: 3,
+  ATDRotationSensor: 4
+};
+
 const Dashboard = () => {
   const navigate = useNavigate();
   const [plcData, setPLCData] = useState<PLCData[]>([]);
@@ -216,14 +224,22 @@ const Dashboard = () => {
     return tableNames;
   };
 
-  // Filter and sort data - show all webhook column data
-  const filteredData = plcData
+  // Filter data and keep a stable, predefined system order so cards do not reorder on refresh.
+  const filteredData = [...plcData]
     .filter(item => item && item.id && item.stationName && item.status)
     .sort((a, b) => {
-      const dateA = new Date(a.lastUpdated);
-      const dateB = new Date(b.lastUpdated);
-      return dateB.getTime() - dateA.getTime();
+      const aOrder = preferredSystemOrder[a.stationName];
+      const bOrder = preferredSystemOrder[b.stationName];
+
+      if (aOrder !== undefined || bOrder !== undefined) {
+        if (aOrder === undefined) return 1;
+        if (bOrder === undefined) return -1;
+        return aOrder - bOrder;
+      }
+
+      return (a.stationName ?? '').localeCompare(b.stationName ?? '');
     });
+
 const getRefreshInterval = useCallback(() => {
   switch (sortBy) {
     case '30sec':
