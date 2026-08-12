@@ -1,3 +1,0 @@
-export const TABLE_NAMES = ['QY_DASH_COMPL_LINE'];
-
-export const DEFAULT_TABLE_NAME = TABLE_NAMES[0];

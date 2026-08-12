@@ -1,16 +1,40 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import PlcCard from "@/components/PlcCard";
 import { ArrowLeft, Filter, RotateCcw, Activity } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { TABLE_NAMES } from "@/config/tableNames";
 import { webhookService } from "@/services/webhookService";
+
+type PLCData = {
+  id: string;
+  stationName: string;
+  status: 'normal' | 'abnormal' | 'warning' | 'unknown';
+  total: number;
+  normal: number;
+  abnormal: number;
+  efficiency?: number;
+  percentage?: number;
+  systemType?: string;
+  lastUpdated: Date;
+  icon?: string;
+  additionalData?: Record<string, unknown>;
+  dynamicData?: Record<string, unknown>;
+  [key: string]: unknown;
+};
+
+const tableNames = [
+  'AY_SP3i_DASH_LINE_LIVE',
+  'AY_SP3I_SMBR_LH_LINE_LIVE',
+  'AY_SP3I_SMBR_RH_LINE_LIVE',
+  'AY_SP3I_SOTR_LH_LINE_LIVE',
+  'AY_SP3I_SOTR_RH_LINE_LIVE'
+];
 
 const Dashboard = () => {
   const navigate = useNavigate();
-  const [plcData, setPLCData] = useState<any[]>([]);
+  const [plcData, setPLCData] = useState<PLCData[]>([]);
   const [filterColumn, setFilterColumn] = useState<string>('all');
   const [sortBy, setSortBy] = useState<string>('30sec');
   const [isConnected, setIsConnected] = useState(false);
@@ -25,7 +49,7 @@ const Dashboard = () => {
   const lineNameRef = useRef<HTMLSpanElement>(null);
 
   // Specific table names to filter by
-  const tableNames = TABLE_NAMES;
+  const tableCount = tableNames.length;
 
   // Time intervals for sorting
   const timeIntervals = [{
@@ -49,7 +73,7 @@ const Dashboard = () => {
   }];
 
   // Fetch data from local n8n webhook with retry logic for ALL mode rotation
-  const fetchWebhookData = async (tableName?: string, timeInterval?: string, retryAttempt = 0) => {
+  const fetchWebhookData = useCallback(async (tableName?: string, timeInterval?: string, retryAttempt = 0) => {
     console.log(`🔄 [ROTATION] Starting fetch - Mode: ${tableName}, Interval: ${timeInterval}, Retry: ${retryAttempt}`);
     
     setIsLoading(true);
@@ -57,7 +81,6 @@ const Dashboard = () => {
     
     // Determine which table to fetch
     let targetTable = tableName;
-    setCurrentlyFetchingTable(targetTable || '');
     if (tableName === 'all') {
       targetTable = tableNames[currentTableIndex];
       console.log(`🎯 [ROTATION] ALL mode - Fetching table ${currentTableIndex + 1}/${tableNames.length}: ${targetTable}`);
@@ -77,7 +100,13 @@ const Dashboard = () => {
         throw new Error(response.error || 'Failed to fetch data from n8n webhook');
       }
 
-      const transformedData = response.data || [];
+      const responseData = response.data ?? [];
+      const transformedData = Array.isArray(responseData)
+        ? responseData.map((item: Record<string, unknown>) => ({
+            ...item,
+            lastUpdated: item.lastUpdated ? new Date(String(item.lastUpdated)) : new Date()
+          })) as PLCData[]
+        : [];
       console.log(`✅ [ROTATION] Successfully fetched ${transformedData.length} items from ${targetTable}`);
       
       // Update data and UI state
@@ -96,9 +125,9 @@ const Dashboard = () => {
       if (retryAttempt < 2) {
         console.log(`🔁 [ROTATION] Retrying fetch for ${targetTable} in ${2000 * (retryAttempt + 1)}ms (attempt ${retryAttempt + 1}/3)`);
         setTimeout(() => {
-          setRetryCount(retryAttempt + 1);
-          fetchWebhookData(tableName, timeInterval, retryAttempt + 1);
-        }, 2000 * (retryAttempt + 1));
+  setRetryCount(retryAttempt + 1);
+  fetchWebhookData(tableName, timeInterval, retryAttempt + 1);
+}, 2000 * (retryAttempt + 1));
       } else {
         console.error(`💀 [ROTATION] Max retries reached for ${targetTable}. Giving up.`);
         setPLCData([]);
@@ -107,7 +136,7 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [currentTableIndex]);
 
   // Dynamic font sizing for line name
   const adjustLineNameFontSize = () => {
@@ -188,61 +217,52 @@ const Dashboard = () => {
   };
 
   // Filter and sort data - show all webhook column data
-  const filteredData = useMemo(() => {
-    return plcData
-      .filter(item => item && item.id && item.stationName && item.status)
-      .sort((a, b) => {
-        const dateA = new Date(a.lastUpdated);
-        const dateB = new Date(b.lastUpdated);
-        return dateB.getTime() - dateA.getTime();
-      });
-  }, [plcData]);
-
+  const filteredData = plcData
+    .filter(item => item && item.id && item.stationName && item.status)
+    .sort((a, b) => {
+      const dateA = new Date(a.lastUpdated);
+      const dateB = new Date(b.lastUpdated);
+      return dateB.getTime() - dateA.getTime();
+    });
+const getRefreshInterval = useCallback(() => {
+  switch (sortBy) {
+    case '30sec':
+      return 30000;
+    case '1min':
+      return 60000;
+    case '5min':
+      return 300000;
+    case '15min':
+      return 900000;
+    case '30min':
+      return 1800000;
+    case '60min':
+      return 3600000;
+    default:
+      return 30000;
+  }
+}, [sortBy]);
   // Initial data load and periodic refresh with ALL mode rotation
   useEffect(() => {
-    // Initial load
-    fetchWebhookData(filterColumn, sortBy);
+  fetchWebhookData(filterColumn, sortBy);
 
-    // Set up periodic refresh based on selected time interval
-    const getRefreshInterval = () => {
-      switch (sortBy) {
-        case '30sec':
-          return 30000;
-        case '1min':
-          return 60000;
-        case '5min':
-          return 300000;
-        case '15min':
-          return 900000;
-        case '30min':
-          return 1800000;
-        case '60min':
-          return 3600000;
-        default:
-          return 30000;
-      }
-    };
+  const interval = setInterval(() => {
+    if (filterColumn === 'all') {
+      setCurrentTableIndex(prevIndex => {
+        const nextIndex = (prevIndex + 1) % tableNames.length;
 
-    const interval = setInterval(() => {
-      if (filterColumn === 'all') {
-        // In ALL mode, rotate to next table and fetch its data
-        setCurrentTableIndex(prevIndex => {
-          const nextIndex = (prevIndex + 1) % tableNames.length;
-          const nextTableName = tableNames[nextIndex];
-          console.log(`🔄 [ROTATION] Timer triggered - Moving to table ${nextIndex + 1}/${tableNames.length}: ${nextTableName}`);
-          
-          // Fetch data for the next table immediately
-          fetchWebhookData('all', sortBy);
-          return nextIndex;
-        });
-      } else {
-        // Single table mode - just refresh current table
-        fetchWebhookData(filterColumn, sortBy);
-      }
+        fetchWebhookData('all', sortBy);
+
+        return nextIndex;
+      });
+    } else {
+      fetchWebhookData(filterColumn, sortBy);
+    }
     }, getRefreshInterval());
 
     return () => clearInterval(interval);
-  }, [filterColumn, sortBy]);
+  }, [filterColumn, sortBy, fetchWebhookData, getRefreshInterval, tableCount]);
+
   const getStatusCounts = () => {
     const normal = filteredData.filter(item => item.status === 'normal').length;
     const warning = filteredData.filter(item => item.status === 'warning').length;
